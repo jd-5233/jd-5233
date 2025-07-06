@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TitleTree Validator - Advanced Visualization Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F9FAFB;
+        }
+        /* Sidebar and Menu */
+        #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        @media (max-width: 768px) {
+            #sidebar {
+                transform: translateX(-100%);
+            }
+            #sidebar.open {
+                transform: translateX(0);
+            }
+        }
+        
+        /* Tab styling */
+        .tab-btn {
+            transition: all 0.3s ease;
+        }
+        .tab-btn.active {
+            color: #4F46E5;
+            border-bottom-color: #4F46E5;
+            background-color: #EEF2FF;
+        }
+        
+        /* --- View 1: Hierarchical Tree Styles --- */
+        .tree-view-1 ul {
+            position: relative;
+            padding: 1rem 0;
+            white-space: nowrap;
+            display: flex;
+            justify-content: center;
+        }
+        .tree-view-1 li {
+            display: inline-block;
+            vertical-align: top;
+            text-align: center;
+            list-style-type: none;
+            position: relative;
+            padding: 1rem .5rem 0 .5rem;
+            flex-shrink: 0;
+        }
+        .tree-view-1 li::before, .tree-view-1 li::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 50%;
+            border-top: 2px solid #D1D5DB;
+            width: 50%;
+            height: 1rem;
+        }
+        .tree-view-1 li::after {
+            right: auto;
+            left: 50%;
+            border-left: 2px solid #D1D5DB;
+        }
+        .tree-view-1 li:only-child::after, .tree-view-1 li:only-child::before {
+            display: none;
+        }
+        .tree-view-1 li:only-child {
+            padding-top: 0;
+        }
+        .tree-view-1 li:first-child::before, .tree-view-1 li:last-child::after {
+            border: 0 none;
+        }
+        .tree-view-1 li:last-child::before {
+            border-right: 2px solid #D1D5DB;
+            border-radius: 0 5px 0 0;
+        }
+        .tree-view-1 li:first-child::after {
+            border-radius: 5px 0 0 0;
+        }
+        .tree-view-1 ul ul::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            border-left: 2px solid #D1D5DB;
+            width: 0;
+            height: 1rem;
+        }
+        .tree-node-content {
+            border: 1px solid #E5E7EB;
+            padding: 1rem;
+            text-decoration: none;
+            display: inline-block;
+            border-radius: .5rem;
+            background-color: #fff;
+            min-width: 240px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+        }
+        .tree-node-content:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-color: #6366F1;
+        }
+        .tree-node-content.current-seller {
+            border: 2px solid #4F46E5;
+            box-shadow: 0 0 15px rgba(79, 70, 229, 0.3);
+        }
+        .details-section {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+            text-align: left;
+        }
+        .details-section.expanded {
+            max-height: 500px; /* Adjust as needed */
+        }
+        .expand-btn svg {
+            transition: transform 0.3s ease;
+        }
+        .expand-btn.expanded svg {
+            transform: rotate(180deg);
+        }
+
+        /* --- View 2: Timeline Styles --- */
+        .timeline-item {
+            position: relative;
+            padding-bottom: 2.5rem;
+            padding-left: 2.5rem;
+            border-left: 2px solid #E5E7EB;
+        }
+        .timeline-item:last-child {
+            border-left: 2px solid transparent;
+        }
+        .timeline-icon {
+            position: absolute;
+            left: -0.8rem;
+            top: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 9999px;
+            background-color: #fff;
+            border: 2px solid #D1D5DB;
+        }
+        .timeline-item.current-seller .timeline-icon {
+            border-color: #4F46E5;
+            background-color: #4F46E5;
+        }
+        .timeline-transaction {
+            color: #6B7280;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="relative min-h-screen md:flex">
+        <!-- Sidebar -->
+        <div id="sidebar" class="bg-white w-64 absolute inset-y-0 left-0 transform md:relative md:translate-x-0 shadow-lg z-30">
+            <div class="p-6 flex justify-between items-center">
+                <a href="#" class="text-2xl font-bold text-gray-900 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-600 mr-2"><path d="M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path><path d="M12 15a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path><path d="M12 19a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path></svg>
+                    TitleTree
+                </a>
+            </div>
+            <nav class="mt-6">
+                 <div>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-700 bg-gray-100 border-r-4 border-indigo-500">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+                        Dashboard
+                    </a>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-600 hover:bg-gray-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M4 12h16M12 4v16"></path></svg>
+                        New Case
+                    </a>
+                    <a href="#" class="flex items-center py-3 px-6 text-gray-600 hover:bg-gray-50">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                        Reports
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <!-- Main content -->
+        <div id="main-content" class="flex-1 flex flex-col overflow-hidden">
+            <header class="flex justify-between items-center p-4 shadow-md bg-white z-10 flex-shrink-0">
+                <div class="flex items-center">
+                     <button id="menu-button" class="text-gray-500 focus:outline-none md:hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    <h1 class="text-xl font-semibold text-gray-700 ml-4 md:ml-0">Case Details</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm hidden md:block">Rajpur Sonarpur, WB Office</span>
+                    <div class="flex items-center space-x-2">
+                        <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/100x100/E2E8F0/4A5568?text=AV" alt="User avatar">
+                        <span class="font-semibold text-sm">Anirban Das</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="flex-1 overflow-x-auto overflow-y-auto bg-gray-100 p-6">
+                <!-- Case Summary -->
+                <div class="bg-white p-6 rounded-lg shadow-sm mb-6 max-w-7xl mx-auto">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">Case ID: TT-RS-2025-07-003</h2>
+                            <p class="text-gray-500 mt-1">Property at: Mouza-Narendrapur, J.L. No. 71, Dag No. 552</p>
+                        </div>
+                        <div id="validationStatus" class="mt-4 sm:mt-0 flex items-center space-x-3 bg-red-100 text-red-800 font-bold px-4 py-2 rounded-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                            <span>Validation Status: Critical Issues Found</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-sm max-w-7xl mx-auto">
+                    <!-- View Switcher -->
+                    <div class="border-b border-gray-200 mb-6">
+                        <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                            <button id="tab-btn-1" class="tab-btn active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">Top-Down Hierarchy</button>
+                            <button id="tab-btn-2" class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 border-transparent font-medium text-sm text-gray-500 hover:text-gray-700 hover:border-gray-300">Reverse Timeline</button>
+                        </nav>
+                    </div>
+
+                    <!-- View 1: Hierarchical Tree -->
+                    <div id="view-1" class="tree-view-1">
+                         <p class="text-sm text-gray-600 mb-4 text-center">This view shows how the property was divided over time. Click on any node to expand for full details.</p>
+                        <div class="text-center overflow-x-auto pb-4">
+                            <ul>
+                                <li>
+                                    <!-- Node: Bimal Chandra Das -->
+                                    <div class="tree-node-content">
+                                        <p class="font-bold text-gray-900">Bimal Chandra Das</p>
+                                        <p class="text-sm text-gray-500">CS Parcha (c. 1940)</p>
+                                        <div class="details-section mt-4" data-details="bimal">
+                                            <dl class="text-xs space-y-2">
+                                                <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">CS-215</dd></div>
+                                                <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">210</dd></div>
+                                                <div class="flex justify-between"><dt class="text-gray-500">Location:</dt><dd class="font-semibold">Narendrapur</dd></div>
+                                                <div class="flex justify-between"><dt class="text-gray-500">Total Land:</dt><dd class="font-semibold">2.0 Acres</dd></div>
+                                                <div class="flex justify-between"><dt class="text-gray-500">Classification:</dt><dd class="font-semibold">Sali (Paddy)</dd></div>
+                                            </dl>
+                                        </div>
+                                        <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="bimal">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                    </div>
+                                    <ul>
+                                        <!-- Node: Arun Kumar Das -->
+                                        <li>
+                                            <div class="tree-node-content">
+                                                <p class="font-bold text-gray-900">Arun Kumar Das</p>
+                                                <p class="text-sm text-gray-500">Inherited (Son)</p>
+                                                <div class="details-section mt-4" data-details="arun">
+                                                    <dl class="text-xs space-y-2">
+                                                        <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">From:</dt><dd class="font-semibold">Bimal C. Das</dd></div>
+                                                        <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">RS-881</dd></div>
+                                                        <div class="flex justify-between"><dt class="text-gray-500">Share (Hissa):</dt><dd class="font-semibold">8 Anna</dd></div>
+                                                        <div class="flex justify-between"><dt class="text-gray-500">Calculated Area:</dt><dd class="font-semibold">1.0 Acre</dd></div>
+                                                        <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Succession Cert.</a><a href="#" class="text-indigo-600 hover:underline block">RS Parcha</a></dd></div>
+                                                    </dl>
+                                                </div>
+                                                <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="arun">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                            </div>
+                                            <ul>
+                                                <!-- Node: Soma Roy -->
+                                                <li>
+                                                    <div class="tree-node-content current-seller">
+                                                        <p class="font-bold text-indigo-600">Soma Roy (Seller)</p>
+                                                        <p class="text-sm text-gray-500">Purchased (2008)</p>
+                                                         <div class="details-section mt-4" data-details="soma">
+                                                            <dl class="text-xs space-y-2">
+                                                                <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">From:</dt><dd class="font-semibold">Arun K. Das</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">LR-1201</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">552</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Land Area:</dt><dd class="font-semibold">0.5 Acres</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Sale Price:</dt><dd class="font-semibold">₹6,00,000</dd></div>
+                                                                <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Sale Deed #4321</a><a href="#" class="text-indigo-600 hover:underline block">Mutation Cert.</a><a href="#" class="text-indigo-600 hover:underline block">Tax Receipt '10</a></dd></div>
+                                                            </dl>
+                                                        </div>
+                                                        <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="soma">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                                    </div>
+                                                </li>
+                                                <!-- Node: Mina Poddar -->
+                                                <li>
+                                                    <div class="tree-node-content">
+                                                         <p class="font-bold text-gray-900">Mina Poddar</p>
+                                                         <p class="text-sm text-gray-500">Purchased (2008)</p>
+                                                         <div class="details-section mt-4" data-details="mina">
+                                                            <dl class="text-xs space-y-2">
+                                                                <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">From:</dt><dd class="font-semibold">Arun K. Das</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">LR-1202</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">553</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Land Area:</dt><dd class="font-semibold">0.5 Acres</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Sale Price:</dt><dd class="font-semibold">₹6,00,000</dd></div>
+                                                                <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Sale Deed #4322</a></dd></div>
+                                                            </dl>
+                                                        </div>
+                                                        <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="mina">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                        <!-- Node: Barun Kumar Das -->
+                                        <li>
+                                            <div class="tree-node-content">
+                                                <p class="font-bold text-gray-900">Barun Kumar Das</p>
+                                                <p class="text-sm text-gray-500">Inherited (Son)</p>
+                                                <div class="details-section mt-4" data-details="barun">
+                                                     <dl class="text-xs space-y-2">
+                                                        <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">From:</dt><dd class="font-semibold">Bimal C. Das</dd></div>
+                                                        <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">RS-882</dd></div>
+                                                        <div class="flex justify-between"><dt class="text-gray-500">Share (Hissa):</dt><dd class="font-semibold">8 Anna</dd></div>
+                                                        <div class="flex justify-between"><dt class="text-gray-500">Calculated Area:</dt><dd class="font-semibold">1.0 Acre</dd></div>
+                                                        <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Succession Cert.</a><a href="#" class="text-indigo-600 hover:underline block">RS Parcha</a></dd></div>
+                                                    </dl>
+                                                </div>
+                                                <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="barun">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                            </div>
+                                             <ul>
+                                                <li>
+                                                    <div class="tree-node-content">
+                                                        <p class="font-bold text-gray-900">Rajat Saha</p>
+                                                        <p class="text-sm text-gray-500">Gifted (2010)</p>
+                                                         <div class="details-section mt-4" data-details="rajat">
+                                                            <dl class="text-xs space-y-2">
+                                                                <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">From:</dt><dd class="font-semibold">Barun K. Das</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">LR-1203</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">554</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Land Area:</dt><dd class="font-semibold">0.5 Acres</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Sale Price:</dt><dd class="font-semibold">N/A (Gift)</dd></div>
+                                                                <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Gift Deed #2105</a></dd></div>
+                                                            </dl>
+                                                        </div>
+                                                        <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="rajat">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                                    </div>
+                                                </li>
+                                                <li>
+                                                    <div class="tree-node-content">
+                                                        <p class="font-bold text-gray-900">Anjali Saha</p>
+                                                        <p class="text-sm text-gray-500">Gifted (2010)</p>
+                                                        <div class="details-section mt-4" data-details="anjali">
+                                                            <dl class="text-xs space-y-2">
+                                                                <div class="flex justify-between border-t pt-2"><dt class="text-gray-500">From:</dt><dd class="font-semibold">Barun K. Das</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">LR-1204</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">555</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Land Area:</dt><dd class="font-semibold">0.5 Acres</dd></div>
+                                                                <div class="flex justify-between"><dt class="text-gray-500">Sale Price:</dt><dd class="font-semibold">N/A (Gift)</dd></div>
+                                                                <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Gift Deed #2106</a></dd></div>
+                                                            </dl>
+                                                        </div>
+                                                        <button class="expand-btn text-indigo-600 text-xs font-semibold mt-4 flex items-center justify-center w-full" data-target="anjali">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                                    </div>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- View 2: Reverse Timeline -->
+                    <div id="view-2" class="hidden">
+                         <p class="text-sm text-gray-600 mb-8 text-center">This view traces the title backwards from the current seller. Click on any step to expand for full details.</p>
+                        <div class="max-w-2xl mx-auto">
+                            <!-- Timeline Item: Soma Roy -->
+                            <div class="timeline-item current-seller">
+                                <div class="timeline-icon"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" class="text-white"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
+                                <div class="w-full">
+                                    <p class="font-bold text-lg text-indigo-600">Soma Roy (Current Seller)</p>
+                                    <p class="text-sm text-gray-500">LR Parcha Holder</p>
+                                    <div class="details-section mt-4" data-details="timeline-soma">
+                                        <dl class="text-sm space-y-2 bg-gray-50 p-4 rounded-lg">
+                                            <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">LR-1201</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">552</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Land Area:</dt><dd class="font-semibold">0.5 Acres</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Acquired Via:</dt><dd class="font-semibold">Purchase</dd></div>
+                                            <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Sale Deed #4321</a><a href="#" class="text-indigo-600 hover:underline block">Mutation Cert.</a><a href="#" class="text-indigo-600 hover:underline block">Tax Receipt '10</a></dd></div>
+                                        </dl>
+                                    </div>
+                                    <button class="expand-btn text-indigo-600 text-xs font-semibold mt-2 flex items-center" data-target="timeline-soma">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                </div>
+                            </div>
+                             <!-- Timeline Item: Arun Kumar Das -->
+                             <div class="timeline-item">
+                                <div class="timeline-transaction absolute -left-32 top-0 text-right">
+                                    <p class="font-semibold text-gray-700">Sale Deed #4321</p>
+                                    <p class="text-xs">18/06/2008</p>
+                                </div>
+                                <div class="timeline-icon"></div>
+                                <div class="w-full">
+                                    <p class="font-semibold text-md text-gray-800">Arun Kumar Das</p>
+                                    <p class="text-sm text-gray-500">RS Parcha Holder</p>
+                                    <div class="details-section mt-4" data-details="timeline-arun">
+                                        <dl class="text-sm space-y-2 bg-gray-50 p-4 rounded-lg">
+                                            <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">RS-881</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Share (Hissa):</dt><dd class="font-semibold">8 Anna</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Calculated Area:</dt><dd class="font-semibold">1.0 Acre</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Acquired Via:</dt><dd class="font-semibold">Inheritance</dd></div>
+                                            <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">Succession Cert.</a><a href="#" class="text-indigo-600 hover:underline block">RS Parcha</a></dd></div>
+                                        </dl>
+                                    </div>
+                                    <button class="expand-btn text-indigo-600 text-xs font-semibold mt-2 flex items-center" data-target="timeline-arun">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                </div>
+                            </div>
+                             <!-- Timeline Item: Bimal Chandra Das -->
+                             <div class="timeline-item">
+                                <div class="timeline-transaction absolute -left-32 top-0 text-right">
+                                    <p class="font-semibold text-gray-700">Inheritance</p>
+                                    <p class="text-xs">c. 1975</p>
+                                </div>
+                                <div class="timeline-icon"></div>
+                                <div class="w-full">
+                                    <p class="font-semibold text-md text-gray-800">Bimal Chandra Das</p>
+                                    <p class="text-sm text-gray-500">CS Parcha Holder</p>
+                                    <div class="details-section mt-4" data-details="timeline-bimal">
+                                        <dl class="text-sm space-y-2 bg-gray-50 p-4 rounded-lg">
+                                            <div class="flex justify-between"><dt class="text-gray-500">Khatian:</dt><dd class="font-semibold">CS-215</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Dag:</dt><dd class="font-semibold">210</dd></div>
+                                            <div class="flex justify-between"><dt class="text-gray-500">Total Land:</dt><dd class="font-semibold">2.0 Acres</dd></div>
+                                            <div class="flex justify-between items-start"><dt class="text-gray-500">Attachments:</dt><dd class="text-right"><a href="#" class="text-indigo-600 hover:underline block">CS Parcha</a></dd></div>
+                                        </dl>
+                                    </div>
+                                    <button class="expand-btn text-indigo-600 text-xs font-semibold mt-2 flex items-center" data-target="timeline-bimal">View Details <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Valuation Chart -->
+                <div class="bg-white p-6 rounded-lg shadow-sm max-w-7xl mx-auto mt-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Valuation Timeline (For Dag 552)</h3>
+                    <div class="h-64">
+                        <canvas id="valuationChart"></canvas>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Tab switching logic
+            const tabBtn1 = document.getElementById('tab-btn-1');
+            const tabBtn2 = document.getElementById('tab-btn-2');
+            const view1 = document.getElementById('view-1');
+            const view2 = document.getElementById('view-2');
+
+            tabBtn1.addEventListener('click', () => {
+                view1.classList.remove('hidden');
+                view2.classList.add('hidden');
+                tabBtn1.classList.add('active');
+                tabBtn2.classList.remove('active');
+            });
+
+            tabBtn2.addEventListener('click', () => {
+                view2.classList.remove('hidden');
+                view1.classList.add('hidden');
+                tabBtn2.classList.add('active');
+                tabBtn1.classList.remove('active');
+            });
+
+            // Expand/Collapse logic for tree and timeline nodes
+            const expandBtns = document.querySelectorAll('.expand-btn');
+            expandBtns.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const targetId = btn.dataset.target;
+                    const detailsSection = document.querySelector(`.details-section[data-details="${targetId}"]`);
+                    if (detailsSection) {
+                        detailsSection.classList.toggle('expanded');
+                        btn.classList.toggle('expanded');
+                    }
+                });
+            });
+
+            // Hamburger Menu Logic
+            const menuButton = document.getElementById('menu-button');
+            const sidebar = document.getElementById('sidebar');
+            menuButton.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+
+            // Chart.js for Valuation Timeline
+            const ctx = document.getElementById('valuationChart').getContext('2d');
+            const valuationData = {
+                labels: ['1975 (Inherited Est.)', '2008 (Sale)', '2025 (Current Est.)'],
+                datasets: [{
+                    label: 'Property Value (in ₹)',
+                    data: [200000, 600000, 9000000], // Estimated value for inheritance, actual for sale, estimated for current
+                    fill: true,
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    borderColor: '#4F46E5',
+                    pointBackgroundColor: '#4F46E5',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: '#4F46E5',
+                    tension: 0.3
+                }]
+            };
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: valuationData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    if (value >= 10000000) return '₹' + (value / 10000000) + ' Cr';
+                                    if (value >= 100000) return '₹' + (value / 100000) + ' L';
+                                    if (value >= 1000) return '₹' + (value / 1000) + ' K';
+                                    return '₹' + value;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
